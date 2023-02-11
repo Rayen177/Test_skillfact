@@ -30,7 +30,7 @@ while True:
                     continue
 
             if how_old < 18:
-                total_price += 0
+                pass
             elif 18 <= how_old < 25:
                 total_price += 990
             else:
