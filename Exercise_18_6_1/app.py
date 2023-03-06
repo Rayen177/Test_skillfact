@@ -29,7 +29,7 @@ def convert(message):
 
         quote, base, amount = values
 
-        total_base = CryptoConverter.convert(quote, base, amount)
+        total_base = CryptoConverter.get_price(quote, base, amount)
     except ConversionException as e:
         bot.reply_to(message, f'Ошибка пользователя\n{e}')
     except Exception as e:

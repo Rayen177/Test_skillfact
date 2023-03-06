@@ -7,7 +7,7 @@ class ConversionException(Exception):
 
 class CryptoConverter:
     @staticmethod
-    def convert(quote, base, amount):
+    def get_price(quote, base, amount):
 
         if quote == base:
             raise ConversionException(f'Невозможно перевести одинаковые валюты {base}')
