@@ -1,96 +1,60 @@
 import pytest
-from config import valid_email, valid_password
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from time import sleep
 
 
-@pytest.fixture(scope='session', autouse=True)
-def logging():
-    base_url = 'https://petfriends.skillfactory.ru'
-    pytest.driver = webdriver.Chrome()
-    pytest.driver.get(base_url)
-
-
-    # нажатие кнопки Зарегистрироваться
-    pytest.driver.implicitly_wait(10)
-    reg_button = pytest.driver.find_element(By.XPATH, '//button[text()="Зарегистрироваться"]')
-    reg_button.click()
-
-    #Выбор условия - У меня уже есть аккаунт
-    pytest.driver.find_element(By.LINK_TEXT, 'У меня уже есть аккаунт').click()
-
-    #Заполнение полей для уже зарегистрированного пользователя
-    email_field = pytest.driver.find_element(By.CSS_SELECTOR, 'input#email')
-    email_field.send_keys(valid_email)
-    password_field = pytest.driver.find_element(By.CSS_SELECTOR, 'input#pass')
-    password_field.send_keys(valid_password)
-    pytest.driver.find_element(By.CSS_SELECTOR, '.btn.btn-success').click()
-
-    #Переходим на страницу my_pets
-    pytest.driver.find_element(By.LINK_TEXT , 'Мои питомцы').click()
-
-
-    yield
-
-    pytest.driver.quit()
-
-def test_all_pets():
-    score = pytest.driver.find_elements(By.CSS_SELECTOR, 'table.table.table-hover>tbody>tr')
+# Test 1 (Присутствуют все питомцы)
+def test_all_pets(logging):
+    score = WebDriverWait(logging, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'table.table.table-hover>tbody>tr')))
     count = 0
     for i in score:
         count += 1
 
-    assert str(count) == pytest.driver.find_element(By.CSS_SELECTOR, 'div.\.col-sm-4.left').text.split('\n')[1].split(' ')[1]
-
-def test_find_header():
-    header = WebDriverWait(pytest.driver, 10).until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, '.navbar.navbar-expand-lg.navbar-light.bg-light'))
-    )
-    assert header
-
-def test_logo_header():
-    logo = WebDriverWait(pytest.driver, 5).until(
-        EC.text_to_be_present_in_element((By.XPATH, "//a[@href='/']"), text_='PetFriends')
-    )
-    assert logo
-
-def test_quit_button():
-
-    quit_but = WebDriverWait(pytest.driver, 5).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[onclick="document.location=\'/logout\';"]'))
-                                   )
-    assert quit_but
-
-def test_header_of_page():
-    header_of_page = WebDriverWait(pytest.driver, 5).until(EC.text_to_be_present_in_element(
-        (By.XPATH, "//h1[text() ='PetFriends']"), text_='PetFriends'))
-    assert header_of_page
+    assert str(count) == logging.find_element(By.CSS_SELECTOR, 'div.\.col-sm-4.left').text.split('\n')[1].split(' ')[1]
 
 
-def test_card_of_pet():
-    card_of_pet = WebDriverWait(pytest.driver, 5).until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "div.card:nth-child(1)")))
-    assert card_of_pet
+# Test 2 (Хотя бы у половины питомцев есть фото)
+def test_have_photo(logging):
+    logging.implicitly_wait(10)
+    score = logging.find_elements(By.CSS_SELECTOR, 'table.table.table-hover>tbody>tr>th>img')
+    count = 0
+    for i in range(len(score)):
+        if score[i].get_attribute('src') != '':
+            count += 1
+    assert len(score)/count <= 2, 'Менее половины питомцев имеет фотографию'
 
-def test_photo_of_pet():
-    photo_of_pet = WebDriverWait(pytest.driver, 5).until(EC.visibility_of_element_located(
-        (By.CSS_SELECTOR, "div.card:nth-child(1)>div>img")))
-    assert photo_of_pet
 
-def test_name_of_pet():
-    name_of_pet = WebDriverWait(pytest.driver, 5).until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "div.card:nth-child(1) h5.card-title")))
-    name = pytest.driver.find_element(By.CSS_SELECTOR, "div.card:nth-child(1) h5.card-title").text
-    assert name is not None
+# Test 3 (У всех питомцев есть имя, возраст и порода)
+def test_pets_have_name_age_type(logging):
+    logging.implicitly_wait(10)
+    score = logging.find_elements(By.XPATH, '//table[@class="table table-hover"]/tbody/tr')
+    for i in score:
+        assert len(i.text.split(' ')) == 3, f'Один из 3 необходимых параметров: имя, возраст, порода отсутствует у элемента {i.text}'
 
-def test_age_of_pet():
-    name_of_pet = WebDriverWait(pytest.driver, 5).until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "div.card:nth-child(1) p.card-text")))
-    age = pytest.driver.find_element(By.CSS_SELECTOR, "div.card:nth-child(1) p.card-text").text.split(', ')
-    assert age is not None
 
+# Test 4 (У всех питомцев разные имена)
+def test_names_different(logging):
+    logging.implicitly_wait(10)
+    score = logging.find_elements(By.XPATH, '//table[@class="table table-hover"]/tbody/tr')
+    list_names = []
+    for i in score:
+        list_names.append(i.text.split(' ')[0])
+    assert len(list_names) == len(set(list_names)), 'Не у всех ваших питомцев разные имена, есть повторяющиеся'
+
+
+# Test 5 (В списке нет повторяющихся питомцев)
+def test_duplicated_pets(logging):
+    logging.implicitly_wait(10)
+    score = logging.find_elements(By.XPATH, '//table[@class="table table-hover"]/tbody/tr')
+    list_names = []
+    list_duplicated_pets = []
+    for i in score:
+        pet_attr = i.text.strip('\n×').split(' ')
+        if pet_attr in list_names:
+            list_duplicated_pets.append(pet_attr)
+        else:
+            list_names.append(pet_attr)
+    assert len(list_duplicated_pets) == 0, 'В вашем списке есть повторяющиеся питомцы (имена, порода и возраст совпадают)'
 
 
